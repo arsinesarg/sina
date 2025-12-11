@@ -5,9 +5,9 @@
 bool isPrime(int n) {
     if (n < 2) return false;
     for (int d = 2; d * d <= n; d++) {
-        if (n % d == 0){
-		 return false;
-	}
+        if (n % d == 0) {
+            return false;
+        }
     }
     return true;
 }
@@ -17,18 +17,18 @@ int nth_prime(int index) {
     int value = 1;
     while (found < index) {
         value++;
-        if (isPrime(value)){
-		 found++;
-	}
+        if (isPrime(value)) {
+            found++;
+        }
     }
     return value;
 }
 
 bool isNumber(const std::string& str) {
     for (char ch : str) {
-        if (ch < '0' || ch > '9'){
-		 return false;
-	}
+        if (ch < '0' || ch > '9') {
+            return false;
+        }
     }
     return !str.empty();
 }
@@ -37,8 +37,14 @@ int main() {
     int pipeParentToChild[2];
     int pipeChildToParent[2];
 
-    pipe(pipeParentToChild);
-    pipe(pipeChildToParent);
+    if (pipe(pipeParentToChild) < 0) {
+        std::cerr << "Error: pipe() failed\n";
+        return 1;
+    }
+    if (pipe(pipeChildToParent) < 0) {
+        std::cerr << "Error: pipe() failed\n";
+        return 1;
+    }
 
     pid_t childPid = fork();
 
@@ -56,32 +62,27 @@ int main() {
             int bytesRead = read(pipeParentToChild[0], &m, sizeof(m));
 
             if (bytesRead <= 0) {
-		break;
-	    }
+                break;
+            }
             if (m <= 0) {
-		 break;
-	    }
-
-            std::cout << "[Child] Starting calculation of prime number #"
-                      << m << "..." << std::endl;
+                break;
+            }
 
             int primeValue = nth_prime(m);
 
-            std::cout << "[Child] Returning result of prime(" << m << ")..."
-                      << std::endl;
-
-            write(pipeChildToParent[1], &primeValue, sizeof(primeValue));
+            if (write(pipeChildToParent[1], &primeValue, sizeof(primeValue)) <= 0) {
+                break;
+            }
         }
 
         close(pipeParentToChild[0]);
         close(pipeChildToParent[1]);
-    } 
+    }
     else {
         close(pipeParentToChild[0]);
         close(pipeChildToParent[1]);
 
         while (true) {
-            std::cout << "[Parent] Enter an integer: ";
             std::string user_input;
             std::cin >> user_input;
 
@@ -96,7 +97,15 @@ int main() {
                 continue;
             }
 
-            int m = std::stoi(user_input);
+            int m = 0;
+
+            try {
+                m = std::stoi(user_input);
+            }
+            catch (...) {
+                std::cout << "Error: number is too large!\n";
+                continue;
+            }
 
             if (m <= 0) {
                 std::cout << "Value must be greater than zero\n";
@@ -108,26 +117,20 @@ int main() {
                 continue;
             }
 
-            std::cout << "[Parent] Transferring " << m
-                      << " to the child process..." << std::endl;
-
-            int sent = write(pipeParentToChild[1], &m, sizeof(m));
-            if (sent <= 0) {
+            if (write(pipeParentToChild[1], &m, sizeof(m)) <= 0) {
                 std::cerr << "Parent: failed to write\n";
                 break;
             }
 
-            std::cout << "[Parent] Awaiting response from child..." << std::endl;
-
             int res;
             int received = read(pipeChildToParent[0], &res, sizeof(res));
+
             if (received <= 0) {
                 std::cerr << "Parent: failed to read from child\n";
                 break;
             }
 
-            std::cout << "[Parent] Received result: prime(" << m
-                      << ") = " << res << "..." << std::endl;
+            std::cout << "prime(" << m << ") = " << res << std::endl;
         }
 
         close(pipeParentToChild[1]);
