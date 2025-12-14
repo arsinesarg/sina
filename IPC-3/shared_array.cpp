@@ -62,7 +62,20 @@ shared_array::shared_array(const std::string& name, size_t size)
         throw std::runtime_error("sem_open failed");
     }
 }
-
+//move-constructor
+shared_array::shared_array(shared_array&& other) noexcept
+    : shm_name(std::move(other.shm_name)),
+      sem_name(std::move(other.sem_name)),
+      shm_fd(other.shm_fd),
+      data(other.data),
+      length(other.length),
+      bytes(other.bytes),
+      sem(other.sem)
+{
+    other.shm_fd = -1;
+    other.data = nullptr;
+    other.sem = nullptr;
+}
 shared_array::~shared_array() {
     if (data)
         munmap(data, bytes);
@@ -87,4 +100,8 @@ size_t shared_array::size() const {
 sem_t* shared_array::get_semaphore() {
     return sem;
 }
-
+//deleting shared memory and semaphore
+void shared_array::unlink() {
+    shm_unlink(shm_name.c_str());
+    sem_unlink(sem_name.c_str());
+}

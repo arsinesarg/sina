@@ -27,6 +27,9 @@ public:
 
     shared_array(const shared_array&) = delete;
     shared_array& operator=(const shared_array&) = delete;
+    
+//move-constructor
+    shared_array(shared_array&& other) noexcept;
 
     ~shared_array();
 
@@ -34,6 +37,8 @@ public:
     size_t size() const;
 
     sem_t* get_semaphore();
+
+    void unlink();
 };
 
 #endif
